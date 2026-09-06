@@ -255,10 +255,13 @@ def patch_libapp(lib_path: Path, replacements):
     return report
 
 
-def rebuild(decompiled_dir: Path, out_apk: Path):
+def rebuild(decompiled_dir: Path, out_apk: Path, use_aapt2: bool = True):
     if out_apk.exists():
         out_apk.unlink()
-    run(["apktool", "b", str(decompiled_dir), "-o", str(out_apk)])
+    cmd = ["apktool", "b", str(decompiled_dir), "-o", str(out_apk)]
+    if use_aapt2:
+        cmd.append("--use-aapt2")
+    run(cmd)
     ok(f"Rebuilt unsigned/unaligned APK: {out_apk}")
 
 
@@ -337,6 +340,9 @@ def parse_args():
                     help="Generate a new keystore at --keystore path if it doesn't exist")
 
     p.add_argument("--skip-sign", action="store_true", help="Stop after rebuild+align, don't sign")
+    p.add_argument("--no-aapt2", action="store_true",
+                    help="Use apktool's legacy aapt instead of aapt2 for rebuild "
+                         "(aapt2 is the default and fixes common 'exit code 134' crashes)")
     return p.parse_args()
 
 
@@ -471,7 +477,7 @@ def main():
 
     # 6. Rebuild
     patched_unsigned = workdir / f"{stem}-patched-unsigned.apk"
-    rebuild(decompiled_dir, patched_unsigned)
+    rebuild(decompiled_dir, patched_unsigned, use_aapt2=not args.no_aapt2)
 
     # 7. Align
     patched_aligned = workdir / f"{stem}-patched-aligned.apk"

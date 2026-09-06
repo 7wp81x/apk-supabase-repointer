@@ -108,8 +108,11 @@ jurisdiction still apply to how you use this.
 Install and ensure these are on your `PATH`:
 
 - [`apktool`](https://apktool.org/) — decompile/rebuild
-- Android SDK **build-tools** (`zipalign`, `apksigner`) — usually under
-  `~/Android/Sdk/build-tools/<version>/`
+- Android SDK **build-tools** (`zipalign`, `apksigner`, and ideally a
+  system `aapt`/`aapt2`) — usually under
+  `~/Android/Sdk/build-tools/<version>/`. This tool builds with
+  `aapt2` by default, since apktool's own bundled `aapt2` binary can
+  fail to extract/run on some Linux distros (see Troubleshooting).
 - JDK (`keytool`), only needed if generating a brand new keystore
 - Python 3.8+
 
@@ -236,6 +239,41 @@ For an input `app-release.apk`, you'll get, alongside it:
 Either this isn't a Flutter app, it's a debug/profile build without an
 AOT snapshot, or apktool's output layout is unexpected for this APK.
 Run `find <decompiled_dir> -iname "*.so"` manually to check.
+
+**`apktool b` fails with `Command failed (1): ... aapt ...` / exit code 134**
+This is `aapt` (the resource compiler apktool bundles) crashing with
+SIGABRT, not a problem with the patch itself. Common on fresh Linux
+installs. Fixes, in order of likelihood:
+
+1. **This tool defaults to `aapt2` instead of legacy `aapt`** for
+   exactly this reason. If you're hitting this, make sure you're on
+   an up-to-date copy of `patch_apk.py` (older copies without this
+   default can be forced with the equivalent of `apktool b ... --use-aapt2`
+   directly). Pass `--no-aapt2` only if you specifically need the old
+   behavior.
+2. If apktool logs a line like
+   `Could not extract resource: /prebuilt/linux/aapt2_64 (defaulting to $PATH binary)`,
+   apktool's bundled aapt2 binary failed to extract/run (often a distro
+   glibc/permissions mismatch) and it fell back to whatever `aapt2` is
+   on your system `$PATH`. Install a system aapt2 so that fallback has
+   something to find:
+   ```bash
+   sudo apt install aapt   # or install via Android SDK build-tools
+   ```
+3. If you're still on legacy `aapt` for another reason, missing 32-bit
+   libraries is the classic cause on 64-bit Linux:
+   ```bash
+   sudo dpkg --add-architecture i386
+   sudo apt update
+   sudo apt install libc6:i386 libstdc++6:i386 zlib1g:i386
+   ```
+4. Try a fresh framework cache:
+   ```bash
+   apktool empty-framework-dir --force
+   ```
+5. Run the exact `aapt`/`aapt2` command apktool printed, by hand, to
+   see the real stderr apktool otherwise swallows.
+
 
 **`No supabase.co URLs found in any libapp.so` (scan warning)**
 The config may be loaded from `assets/flutter_assets/` instead of
