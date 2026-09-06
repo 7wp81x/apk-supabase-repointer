@@ -1,0 +1,17 @@
+# Build artifacts / working files (regenerate via patch_apk.py, don't commit)
+*-decompiled/
+*-patched-unsigned.apk
+*-patched-aligned.apk
+*-patched-signed.apk
+*.apk
+# Keystores and secrets - never commit these
+*.jks
+*.keystore
+*keystore*
+secrets.env
+.env
+*.sh
+# OS/editor cruft
+.DS_Store
+__pycache__/
+*.pyc
